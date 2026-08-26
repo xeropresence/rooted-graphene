@@ -152,10 +152,12 @@ jobs:
       - run: sudo apt-get install -y jq curl git
       - name: Test APatch flavor input validation
         run: bash tests/apatch-flavor.sh
-      - name: Use dummy keys and certs for PRs
-        # Neither vars nor secrets are exposed to external PRs. 
-        # We still want them to build so generating dummy secrets seems the pragmatic solution 
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+      - name: Use dummy keys and certs for PRs and fork E2E
+        # External PRs cannot access secrets. The fork-only E2E run deliberately
+        # uses disposable keys so it cannot publish production-signed artifacts.
+        if: >-
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) ||
+          (github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e')
         env:
           AVBROOT_PASS: ci-test-pass
         run: |
