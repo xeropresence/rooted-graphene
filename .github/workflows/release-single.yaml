@@ -129,18 +129,17 @@ jobs:
           else
             echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
           fi
-      # Fork-only end-to-end packaging fixture. This branch uses a public stock
-      # boot image to exercise exact boot replacement without publishing a
-      # production APatch image or its superkey.
-      - name: Prepare APatch E2E packaging fixture
+      # Fork-only flash test. The input is the exact APatch boot image already
+      # proven on shiba 2026081300; the OTA is signed with repository secrets.
+      - name: Prepare flash-test APatch boot image
         if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
         run: |
           mkdir -p .tmp
           curl --fail --location --silent --show-error \
-            --output .tmp/shiba-2026081300-stock-boot.img \
-            https://raw.githubusercontent.com/xeropresence/rooted-graphene/ci-fixtures/fixtures/shiba-2026081300-stock-boot.img
-          echo "APATCH_BOOT_IMAGE=.tmp/shiba-2026081300-stock-boot.img" >> "$GITHUB_ENV"
-          echo "APATCH_BOOT_SHA256=6f22b8f72994db293ef8d3b151741c3a12419755fcb71c3300ec4704a55770d3" >> "$GITHUB_ENV"
+            --output .tmp/shiba-2026081300-apatch-boot.img \
+            https://raw.githubusercontent.com/xeropresence/rooted-graphene/ci-fixtures/fixtures/shiba-2026081300-apatch-boot.img
+          echo "APATCH_BOOT_IMAGE=.tmp/shiba-2026081300-apatch-boot.img" >> "$GITHUB_ENV"
+          echo "APATCH_BOOT_SHA256=d633c4d988ce26af64bb0ce5dfa841eb830731202b00f55a69664e2167eeb152" >> "$GITHUB_ENV"
           echo "APATCH_BOOT_DEVICE=shiba" >> "$GITHUB_ENV"
           echo "APATCH_BOOT_VERSION=2026081300" >> "$GITHUB_ENV"
           echo "OTA_VERSION=2026081300" >> "$GITHUB_ENV"
@@ -152,12 +151,10 @@ jobs:
       - run: sudo apt-get install -y jq curl git
       - name: Test APatch flavor input validation
         run: bash tests/apatch-flavor.sh
-      - name: Use dummy keys and certs for PRs and fork E2E
-        # External PRs cannot access secrets. The fork-only E2E run deliberately
-        # uses disposable keys so it cannot publish production-signed artifacts.
-        if: >-
-          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) ||
-          (github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e')
+      - name: Use dummy keys and certs for PRs
+        # Neither vars nor secrets are exposed to external PRs.
+        # We still want them to build so generating dummy secrets seems pragmatic.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
         env:
           AVBROOT_PASS: ci-test-pass
         run: |
@@ -205,13 +202,16 @@ jobs:
             sha256sum "$ota" "$ota.csig"
             cat .tmp/apatch/shiba.json
           } | tee .tmp/apatch-e2e-results.txt
-      - name: Upload APatch E2E results
+      - name: Upload flash-test APatch OTA
         if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
         uses: actions/upload-artifact@v4
         with:
-          name: apatch-e2e-results
+          name: apatch-flash-test-shiba-2026081300
           include-hidden-files: true
+          compression-level: 0
+          retention-days: 7
           path: |
-            .tmp/apatch-e2e-results.txt
+            .tmp/*-apatch-*.zip
             .tmp/*-apatch-*.zip.csig
             .tmp/apatch/shiba.json
+            .tmp/apatch-e2e-results.txt
