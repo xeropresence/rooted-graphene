@@ -148,19 +148,25 @@ jobs:
           else
             echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
           fi
-      # Fork-only flash test. The input is the exact APatch boot image already
-      # proven on shiba 2026081300; the OTA is signed with repository secrets.
-      - name: Prepare flash-test APatch boot image
+      # Fork-only flash test. These are the exact APatch boot and manager
+      # artifacts already proven on shiba 2026081300; the OTA is signed with
+      # repository secrets.
+      - name: Prepare flash-test APatch artifacts
         if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
         run: |
           mkdir -p .tmp
           curl --fail --location --silent --show-error \
             --output .tmp/shiba-2026081300-apatch-boot.img \
             https://raw.githubusercontent.com/xeropresence/rooted-graphene/ci-fixtures/fixtures/shiba-2026081300-apatch-boot.img
+          curl --fail --location --silent --show-error \
+            --output .tmp/APatch_11270_9d0b69e_main-release-signed.apk \
+            https://raw.githubusercontent.com/xeropresence/rooted-graphene/ci-fixtures/fixtures/APatch_11270_9d0b69e_main-release-signed.apk
           echo "APATCH_BOOT_IMAGE=.tmp/shiba-2026081300-apatch-boot.img" >> "$GITHUB_ENV"
           echo "APATCH_BOOT_SHA256=d633c4d988ce26af64bb0ce5dfa841eb830731202b00f55a69664e2167eeb152" >> "$GITHUB_ENV"
           echo "APATCH_BOOT_DEVICE=shiba" >> "$GITHUB_ENV"
           echo "APATCH_BOOT_VERSION=2026081300" >> "$GITHUB_ENV"
+          echo "APATCH_MANAGER_APK=.tmp/APatch_11270_9d0b69e_main-release-signed.apk" >> "$GITHUB_ENV"
+          echo "APATCH_MANAGER_SHA256=f348bf0ae188bb8cb48537d7ddd8fe981666df805ff2690cf4235db5c9d158e7" >> "$GITHUB_ENV"
           echo "OTA_VERSION=2026081300" >> "$GITHUB_ENV"
           echo "SKIP_ROOTLESS=true" >> "$GITHUB_ENV"
           echo "SKIP_MAGISK=true" >> "$GITHUB_ENV"
