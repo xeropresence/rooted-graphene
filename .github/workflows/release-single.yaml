@@ -129,6 +129,26 @@ jobs:
           else
             echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
           fi
+      # Fork-only end-to-end packaging fixture. This branch uses a public stock
+      # boot image to exercise exact boot replacement without publishing a
+      # production APatch image or its superkey.
+      - name: Prepare APatch E2E packaging fixture
+        if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
+        run: |
+          mkdir -p .tmp
+          curl --fail --location --silent --show-error \
+            --output .tmp/shiba-2026081300-stock-boot.img \
+            https://raw.githubusercontent.com/xeropresence/rooted-graphene/ci-fixtures/fixtures/shiba-2026081300-stock-boot.img
+          echo "APATCH_BOOT_IMAGE=.tmp/shiba-2026081300-stock-boot.img" >> "$GITHUB_ENV"
+          echo "APATCH_BOOT_SHA256=6f22b8f72994db293ef8d3b151741c3a12419755fcb71c3300ec4704a55770d3" >> "$GITHUB_ENV"
+          echo "APATCH_BOOT_DEVICE=shiba" >> "$GITHUB_ENV"
+          echo "APATCH_BOOT_VERSION=2026081300" >> "$GITHUB_ENV"
+          echo "OTA_VERSION=2026081300" >> "$GITHUB_ENV"
+          echo "SKIP_ROOTLESS=true" >> "$GITHUB_ENV"
+          echo "SKIP_MAGISK=true" >> "$GITHUB_ENV"
+          echo "SKIP_PIXINCREATE=true" >> "$GITHUB_ENV"
+          echo "SKIP_CLEANUP=true" >> "$GITHUB_ENV"
+
       - run: sudo apt-get install -y jq curl git
       - name: Test APatch flavor input validation
         run: bash tests/apatch-flavor.sh
@@ -164,3 +184,31 @@ jobs:
           else
             DEBUG=1 bash -c '. rooted-ota.sh && createAndReleaseRootedOta'
           fi
+      - name: Inspect APatch E2E outputs
+        if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
+        run: |
+          shopt -s nullglob
+          ota_files=(.tmp/*-apatch-*.zip)
+          if (( ${#ota_files[@]} != 1 )); then
+            printf 'Expected one APatch OTA, found %d\n' "${#ota_files[@]}" >&2
+            exit 1
+          fi
+          ota="${ota_files[0]}"
+          test -s "$ota"
+          test -s "$ota.csig"
+          test -s .tmp/apatch/shiba.json
+          {
+            printf 'ota=%s\n' "$ota"
+            stat --format='ota_size=%s' "$ota"
+            sha256sum "$ota" "$ota.csig"
+            cat .tmp/apatch/shiba.json
+          } | tee .tmp/apatch-e2e-results.txt
+      - name: Upload APatch E2E results
+        if: github.event_name == 'push' && github.ref_name == 'apatch-ota-e2e'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apatch-e2e-results
+          path: |
+            .tmp/apatch-e2e-results.txt
+            .tmp/*-apatch-*.zip.csig
+            .tmp/apatch/shiba.json
