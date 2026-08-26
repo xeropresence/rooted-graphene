@@ -1,5 +1,8 @@
 name: Release single device
 
+permissions:
+  contents: write
+
 on:
   # Note that push/PR will not release, only build to see if there are obvious failures
   push:
