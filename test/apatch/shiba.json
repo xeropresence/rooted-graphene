@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "full": {
+    "location_ota": "https://github.com/xeropresence/rooted-graphene/releases/download/2026092501/shiba-2026092501-acc95f8-apatch-kp0.13.9-fb2d71d122ee-test.zip",
+    "location_csig": "https://github.com/xeropresence/rooted-graphene/releases/download/2026092501/shiba-2026092501-acc95f8-apatch-kp0.13.9-fb2d71d122ee-test.zip.csig"
+  }
+}
